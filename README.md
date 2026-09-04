@@ -4,6 +4,7 @@
 
 [![Live App](https://img.shields.io/badge/Live%20Deployment-Render-46E3B7.svg?style=flat-square&logo=render)](https://ai-customer-onboarding.onrender.com/)
 [![Project Report](https://img.shields.io/badge/Project%20Report-Google%20Drive-4285F4.svg?style=flat-square&logo=google-drive)](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717.svg?style=flat-square&logo=github)](https://github.com/sayyedsabirali/ai-customer-onboarding)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-FF6F00.svg?style=flat-square)](https://langchain-ai.github.io/langgraph/)
 [![Groq Vision](https://img.shields.io/badge/Vision%20%26%20LLM-Groq%20Cloud-f55036.svg?style=flat-square)](https://groq.com/)
@@ -13,39 +14,25 @@
 
 ---
 
-> 🚀 **Live Deployed Application:** [https://ai-customer-onboarding.onrender.com/](https://ai-customer-onboarding.onrender.com/)  
-> 📑 **Official Architecture & Project Report (PDF):** [View on Google Drive](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)  
-> 💻 **GitHub Repository:** [https://github.com/sayyedsabirali/ai-customer-onboarding](https://github.com/sayyedsabirali/ai-customer-onboarding)
+### 📌 Project Deliverables & Live Links
 
----
-
-## 💡 What is FlowAI? (In Simple Words)
-
-In most companies, signing up a new customer is painful and slow:
-1. Customers have to fill long, manual forms.
-2. They upload identity documents (like PAN card, GST, or Company Registration), but a human has to manually open each file and check if it is correct.
-3. If a customer leaves halfway, nobody follows up on time.
-4. If onboarding takes too long, company **deadlines (SLAs)** get breached, and customers drop off.
-
-**FlowAI solves this end-to-end.** It is an **autonomous AI employee** for customer onboarding:
-- It chats with the customer naturally to collect their profile without rigid form fields.
-- It uses **AI Vision** to inspect uploaded documents, read the printed text, verify validity, and match names in seconds.
-- If an upload fails 3 times, it **hands over to human operations** with the actual failing document and full failure context.
-- It tracks deadlines in real-time on an **Operations Dashboard**, dynamically bubbling up customers who need urgent attention.
-- If a customer closes the tab and returns days later, it **remembers everything** and resumes right where they left off.
-
----
-
-## 📖 Key Concepts & Plain English Definitions
-
-| Concept | Plain English Definition | How FlowAI Uses It |
+| Deliverable | Destination / Resource | Notes |
 | :--- | :--- | :--- |
-| **AI Onboarding Agent** | Not a generic chatbot, but an autonomous worker that executes business actions, inspects files, and writes to databases. | Manages the full customer journey from first greeting to downstream account activation. |
-| **SLA (Service Level Agreement)** | The promised deadline to complete onboarding (e.g. 24h for Individual, 48h for Startup, 72h for Enterprise). | Tracks elapsed time, calculates urgency scores, and flags accounts as **On-Track**, **At-Risk**, or **Breached**. |
-| **Human-in-the-Loop (HITL)** | A design pattern where AI does the heavy lifting, but routes exceptional or failed cases to real human reviewers. | If verification fails 3 times, the AI halts retries and opens a support ticket with the actual failing document attached. |
-| **Multimodal Vision OCR** | AI that can "see" and read images and PDFs, rather than just checking filenames. | Reads PAN, GST, and Company documents, verifies content authenticity, and detects mismatched or illegible uploads. |
-| **Stateful Resumption** | The system's memory persists in PostgreSQL, so progress is never lost when the user closes their browser or the server restarts. | Customer enters their email → instantly restores exact conversation history and verified document state. |
-| **Write-Consolidation** | An architectural optimization where database writes are batched at key milestones instead of every chat turn. | Reduced message turnaround latency by **60%** (from ~2.4s to <850ms). |
+| 🌐 **Live Deployed Application** | **[https://ai-customer-onboarding.onrender.com/](https://ai-customer-onboarding.onrender.com/)** | Customer Portal + Ops SLA Dashboard |
+| 📑 **Project & Architecture Report** | **[Google Drive Document (PDF)](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)** | In-depth system design & evaluation paper |
+| 💻 **Source Code Repository** | **[sayyedsabirali/ai-customer-onboarding](https://github.com/sayyedsabirali/ai-customer-onboarding)** | Clean production code & test suites |
+| 📊 **Live Swagger API Docs** | **[API Documentation (/docs)](https://ai-customer-onboarding.onrender.com/docs)** | Interactive OpenAPI test console |
+
+---
+
+## 💡 Executive Summary
+
+**FlowAI** is an autonomous AI customer onboarding system engineered to replace slow manual verification workflows and eliminate SLA breaches:
+- **Conversational Intake:** Collects name, email, phone, and tier conversationally without rigid multi-step forms.
+- **Multimodal Vision OCR:** Powered by Groq Cloud (`llama-3.2-11b-vision-preview`) to parse identity/business documents, extract metadata, and validate name consistency in seconds.
+- **Stateful Resumption:** Backed by PostgreSQL LangGraph checkpointing (`AsyncPostgresSaver`) keyed to customer emails, preserving complete chat and document progress across reloads and disconnects.
+- **Deterministic HITL Escalation:** Enforces a 3-strike validation policy; failing uploads trigger an escalation ticket preserving the actual uploaded file for inline operator review.
+- **Real-Time SLA Intelligence:** Monitors tier-specific deadlines (Individual 24h, Startup 48h, Enterprise 72h) with dynamic urgency scoring and one-click batch follow-ups.
 
 ---
 
@@ -93,22 +80,15 @@ Operators select multiple stalled customers to dispatch context-aware, personali
 
 ![System Architecture Diagram](docs/images/architecture_diagram.png)
 
-There are five moving pieces, and here is what actually happens when a customer talks to FlowAI:
-
-1. **Frontend (React SPA):** The customer types into the **Customer Portal** (chat + inline KYC dropzone), while operators watch the same data live on the **Operations Dashboard** (SLA queue + batch follow-up controls). Both talk to the same backend.
-2. **FastAPI Gateway:** Every request — chat message, document upload, dashboard refresh — passes through the gateway first. It applies rate limiting, attaches a correlation ID for logging, and forwards the request into the agent.
-3. **LangGraph Agent Workflow** is a cyclic graph, not a straight line:
-   - `1. Greeting & Tier Selection` → `2. Info Extraction (Name/Email/Phone)` → `3. Document Verification Loop`.
-   - Inside the **Document Verification Loop**, every upload is routed to the **External AI Cloud** (Groq Multimodal Vision & LLM) for OCR and document matching. A pass moves the customer to the next required document; a fail increments the attempt counter and loops back into the same node.
-   - If a document fails **3 times**, the loop breaks and control passes sideways into **Human-in-the-Loop Review** — the graph does not keep retrying.
-   - Once every document is verified, the graph exits the loop into `4. Account Activation (SLA Met)`.
-4. **Human-in-the-Loop Review:** The failed attempt lands in the **Escalation Queue** with the actual document attached. An operator picks one of three outcomes:
-   - **Approved** → flows back into the Document Verification Loop, which advances the pointer to the next document instead of re-asking for the approved one.
-   - **Rejected** → flows straight into **Persistence & Storage**, permanently locking the customer's session.
-   - **Re-upload requested** → the customer gets a fresh attempt on the same document.
-5. **Persistence & Storage (PostgreSQL / Neon):** Everywhere you see a "Save State & Session" arrow in the diagram, that's a deliberate checkpoint — not every chat turn. The database holds three things: customer + KYC state, the LangGraph checkpointer (for session resumption), and SLA/escalation tickets. This is also what the Gateway reads from when a customer resumes onboarding by email.
-
-This is intentionally **not** a one-way pipeline — the loop-back edges (`Multimodal OCR`, `Failed 3 Times`, `Approved`, `Rejected`) are what let the same graph handle the happy path, repeated failures, and human intervention without needing separate code paths for each.
+1. **Frontend (React SPA):** Dual interfaces — Customer Chat & Document Upload Portal, and Operations SLA Intelligence Dashboard.
+2. **FastAPI Gateway:** Enforces rate limiting (`60 req/min`), structured request logging, and dispatches requests to the agent graph.
+3. **Cyclic LangGraph Workflow:**
+   - `Tier Selection` → `Metadata Extraction` → `Document Verification Loop`.
+   - Routes uploads to **Groq Multimodal Vision** for live OCR parsing.
+   - Enforces a 3-strike threshold: after 3 failed attempts, routes immediately to Human Review.
+   - On full verification, executes provisioning (`account`, `config`, `billing`) and transitions to `Completed`.
+4. **Human-in-the-Loop (HITL):** Persists failed files to the database for inline operator review. Operators can **Approve** (advances pointer), **Re-upload** (prompts customer), or **Reject** (locks session with HTTP 403).
+5. **Persistence & Storage (Neon PostgreSQL):** Backed by `AsyncPostgresSaver` connection pooling, persisting checkpoints at milestone events for instant session resumption.
 
 ---
 
@@ -143,7 +123,7 @@ This is intentionally **not** a one-way pipeline — the loop-back edges (`Multi
 
 ## 🧪 Evaluation & Testing Methodology
 
-The assignment's own testing focus is: *"problem decomposition, state management, orchestration, tool calling, document handling, human-in-the-loop design and reliability."* Rather than a flat list of pass/fail lines, the system was evaluated by walking through the real onboarding journey stage by stage — the same order a customer or operator would actually hit — and stress-testing each one against that focus.
+The system was evaluated across end-to-end customer journeys and automated regression suites against the core criteria:
 
 ### 1. Conversational Intake & Problem Decomposition
 - Gave all details in one message (*"I'm Rahul, rahul@gmail.com, 9876543210"*) — extracted correctly in a single turn.
