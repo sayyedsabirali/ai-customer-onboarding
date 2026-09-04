@@ -1,0 +1,79 @@
+flowchart TD
+    %% FRONTEND
+    subgraph UI ["🖥️ Frontend Layer (React SPA)"]
+        CustomerPortal["👤 Customer Portal<br/>(Chat & KYC Upload)"]
+        AdminDashboard["📊 Operations Dashboard<br/>(SLA Queue & Batch Follow-up)"]
+    end
+
+    %% BACKEND GATEWAY
+    subgraph API ["⚡ Backend Gateway (FastAPI)"]
+        Gateway["FastAPI Gateway<br/>(Rate Limiting & Correlation Logs)"]
+    end
+
+    %% AGENT ENGINE
+    subgraph Engine ["🧠 LangGraph Agent Workflow"]
+        Greeting["1. Greeting & Tier Selection"]
+        CollectInfo["2. Info Extraction (Name/Email/Phone)"]
+        DocumentKYC["3. Document Verification Loop"]
+        Provisioning["4. Account Activation (SLA Met)"]
+
+        Greeting --> CollectInfo
+        CollectInfo --> DocumentKYC
+        DocumentKYC --> Provisioning
+    end
+
+    %% HUMAN IN THE LOOP
+    subgraph HITL ["👨‍💼 Human-in-the-Loop Review"]
+        Escalation["Escalation Queue<br/>(Triggered after 3 AI Failures)"]
+        HumanAction["Approve / Re-upload / Reject"]
+        Escalation --> HumanAction
+    end
+
+    %% EXTERNAL AI
+    subgraph AI ["☁️ External AI Cloud"]
+        Groq["Groq Multimodal Vision & LLM<br/>• OCR & Document Match<br/>• Proactive SLA Reminders"]
+    end
+
+    %% DATABASE
+    subgraph DB ["💾 Persistence & Storage"]
+        Database[("PostgreSQL Neon DB<br/>• Customers & KYC State<br/>• LangGraph Checkpointer<br/>• SLA & Escalation Tickets")]
+    end
+
+    %% FLOW CONNECTIONS
+    CustomerPortal <--> Gateway
+    AdminDashboard <--> Gateway
+
+    Gateway <--> Engine
+    DocumentKYC <-->|"Multimodal OCR"| Groq
+    DocumentKYC -- "Failed 3 Times" --> Escalation
+    HumanAction -- "Approved" --> DocumentKYC
+    HumanAction -- "Rejected" --> Database
+
+    Engine <-->|"Save State & Session"| Database
+    Gateway <--> Database
+
+    %% CLEAN / SOFT SUBGRAPH BACKGROUNDS
+    style UI fill:#f5f3ff,stroke:#6366f1,stroke-width:2px,color:#312e81
+    style API fill:#f0f9ff,stroke:#0284c7,stroke-width:2px,color:#075985
+    style Engine fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af
+    style HITL fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87
+    style AI fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12
+    style DB fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d
+
+    %% VIBRANT INNER BOXES
+    style CustomerPortal fill:#4f46e5,stroke:#3730a3,stroke-width:2px,color:#ffffff
+    style AdminDashboard fill:#4338ca,stroke:#312e81,stroke-width:2px,color:#ffffff
+
+    style Gateway fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#ffffff
+
+    style Greeting fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#ffffff
+    style CollectInfo fill:#1d4ed8,stroke:#1e40af,stroke-width:2px,color:#ffffff
+    style DocumentKYC fill:#1e40af,stroke:#1e3a8a,stroke-width:2px,color:#ffffff
+    style Provisioning fill:#059669,stroke:#047857,stroke-width:2px,color:#ffffff
+
+    style Escalation fill:#9333ea,stroke:#7e22ce,stroke-width:2px,color:#ffffff
+    style HumanAction fill:#7e22ce,stroke:#6b21a8,stroke-width:2px,color:#ffffff
+
+    style Groq fill:#ea580c,stroke:#c2410c,stroke-width:2px,color:#ffffff
+
+    style Database fill:#16a34a,stroke:#15803d,stroke-width:2px,color:#ffffff

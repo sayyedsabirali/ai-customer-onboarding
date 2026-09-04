@@ -1,0 +1,383 @@
+\documentclass[12pt,a4paper]{article}
+
+% ============================================================
+% PACKAGES
+% ============================================================
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{amsmath}
+
+\geometry{
+    left=1in,
+    right=1in,
+    top=1in,
+    bottom=1in
+}
+
+% Overleaf images path configuration (finds images in images/, ./images/, or docs/images/)
+\graphicspath{{images/}{./images/}{./docs/images/}{docs/images/}{./}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{FlowAI: Production Onboarding Agent}
+\lhead{UnleashX Assignment Technical Report}
+\cfoot{\thepage}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible
+}
+
+% ============================================================
+% DOCUMENT
+% ============================================================
+
+\begin{document}
+
+% ============================================================
+% TITLE PAGE
+% ============================================================
+
+\begin{titlepage}
+    \centering
+
+    \vspace*{1.2cm}
+
+    {\Large \textbf{Production Engineering Assignment Report}}\\[0.5cm]
+
+    {\Huge \textbf{FlowAI: Autonomous AI Customer Onboarding \& SLA Intelligence Agent}}\\[0.8cm]
+
+    {\Large UnleashX}\\[1.2cm]
+
+    \rule{\textwidth}{0.5pt}\\[0.4cm]
+
+    {\large
+    A Deep-Dive Technical Engineering Report on Architecture Design, Multi-Step Engineering\\
+    Approaches, Multimodal Vision OCR, PostgreSQL Checkpoint Persistence, Human-in-the-Loop\\
+    Governance, and Comprehensive Hands-on Production Stress-Testing.
+    }
+
+    \rule{\textwidth}{0.5pt}\\[1.5cm]
+
+    \begin{tabular}{rl}
+        \textbf{Author:} & Sayyed Sabir Ali \\
+        \textbf{Role:} & AI/ML Engineer Candidate \\
+        \textbf{Backend Framework:} & Python 3.10+, FastAPI, Uvicorn, Pydantic \\
+        \textbf{Orchestration Engine:} & LangGraph (StateGraph with AsyncPostgresSaver) \\
+        \textbf{Inference \& Vision:} & Groq Cloud API (Llama-3.3-70B, Llama-3.2-11B-Vision) \\
+        \textbf{Database Infrastructure:} & PostgreSQL (Neon Serverless Pooler) \\
+        \textbf{Frontend Interface:} & React 18 SPA, Tailwind CSS, Lucide Icons \\
+    \end{tabular}
+
+    \vfill
+
+    {\large \today}
+
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+% 1. EXECUTIVE SUMMARY & WHAT IS FLOWAI
+% ============================================================
+
+\section{Executive Summary \& System Definition}
+
+\subsection{What is FlowAI?}
+Customer onboarding is the single most critical touchpoint in enterprise software and financial services. In traditional operations, onboarding new customers requires significant manual effort: customers fill out long, tedious forms, manually upload identity and tax credentials, wait days for back-office personnel to verify files, and frequently drop out mid-journey due to friction.
+
+\textbf{FlowAI} is an autonomous, production-oriented customer onboarding platform built to eliminate these operational bottlenecks. Rather than acting as a superficial conversational chatbot, FlowAI functions as a digital onboarding specialist with end-to-end operational authority:
+\begin{enumerate}
+    \item \textbf{Conversational Intake:} Collects customer metadata conversationally, extracting multi-field single-turn prompts with regex and schema fallbacks.
+    \item \textbf{Multimodal Vision Document KYC:} Leverages Groq multimodal vision models to visually inspect credentials (PAN cards, GST certificates, Company Incorporation papers), extracting printed text, validating document types, and ensuring applicant name consistency.
+    \item \textbf{Deterministic Safety Bounds (3-Strike Rule):} Halts verification retries after 3 consecutive failures to avoid token bleeding and routes the case to human operations.
+    \item \textbf{Tri-State Human-in-the-Loop (HITL) Review:} Provides operations teams with an inline inspection modal supporting \textit{Manual Approval}, \textit{Request Re-upload with Custom Feedback}, and \textit{Permanent Application Rejection (HTTP 403)}.
+    \item \textbf{Dynamic Operations SLA Intelligence:} Prioritizes stalled accounts dynamically using a mathematical urgency formula ($\mathcal{U}$) and provides one-click batch follow-up messaging.
+    \item \textbf{Stateful Multi-Session Persistence:} Employs PostgreSQL-backed checkpointing via \texttt{AsyncPostgresSaver}, allowing customers to resume their exact session anytime using their email.
+\end{enumerate}
+
+% ============================================================
+% 2. SYSTEM ARCHITECTURE
+% ============================================================
+
+\section{System Architecture}
+
+The system architecture is structured across five decoupled layers designed for horizontal scalability, deterministic execution, and state persistence:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/architecture_diagram.png}
+    \caption{FlowAI Layered System Architecture: Decoupled design connecting React 18 SPA frontend, FastAPI gateway, LangGraph orchestration, Groq multimodal vision inference, and PostgreSQL persistence.}
+    \label{fig:architecture}
+\end{figure}
+
+\subsection{Architectural Layers}
+\begin{itemize}
+    \item \textbf{Client Layer (React 18 SPA):} Dual-view single page application featuring the Customer Onboarding Portal (chat, inline dropzone, journey stepper) and the Operations \& SLA Dashboard (urgency queue, review modal, batch follow-up).
+    \item \textbf{Gateway Layer (FastAPI):} Handles request routing, sliding-window rate limiting, correlation ID injection, and structured JSON logging.
+    \item \textbf{Agent Orchestration Layer (LangGraph):} Manages the cyclic state machine, state transitions, conditional edges, and interruption primitives (\texttt{interrupt()}) that pause execution waiting for external customer uploads.
+    \item \textbf{External Intelligence Layer (Groq Cloud API):} Executes sub-second LLM inference using \texttt{llama-3.3-70b-versatile} and multimodal vision OCR using \texttt{llama-3.2-11b-vision-preview}.
+    \item \textbf{Persistence Layer (PostgreSQL on Neon):} Maintains relational tables for business entities alongside LangGraph checkpoints via \texttt{AsyncPostgresSaver}.
+\end{itemize}
+
+% ============================================================
+% 3. STEP-BY-STEP ENGINEERING APPROACHES
+% ============================================================
+
+\section{Step-by-Step Engineering Approaches}
+
+To build an agent capable of real production deployment, each step of the customer onboarding journey was engineered with specific strategies, trade-off analyses, and failure-handling mechanisms:
+
+\subsection{Step 1: Conversational Profile Intake \& Tier Assignment Strategy}
+\textbf{The Challenge:} Customers rarely answer questions in rigid, sequential turns. They often dump information all at once (e.g., \textit{"Rahul here, rahul@gmail.com, 9876543210"}) or provide invalid phone numbers.
+\textbf{Our Engineering Approach:}
+\begin{itemize}
+    \item We implemented a hybrid extraction strategy: the LLM parses the sentence into candidate fields, while strict regex validators sanitize email syntax and ensure phone numbers contain exactly 10 digits.
+    \item If extraction is incomplete, the state preserves whatever valid entities were captured and specifically prompts only for the missing item.
+    \item \textbf{Fresh Session Isolation:} To prevent premature tier assumptions, fresh sessions remain unassigned until the customer explicitly selects or mentions their tier (\texttt{Individual} = 24h, \texttt{Startup} = 48h, \texttt{Enterprise} = 72h).
+\end{itemize}
+
+\subsection{Step 2: Multimodal Document KYC \& Content Verification Strategy}
+\textbf{The Challenge:} Standard rule-based systems only check file extensions (\texttt{.pdf} or \texttt{.png}), leaving systems vulnerable to invalid or mismatched uploads (e.g., uploading a grocery bill instead of a PAN card). Furthermore, company registration documents contain the business name rather than the applicant's personal name, causing naive name-match algorithms to fail.
+\textbf{Our Engineering Approach:}
+\begin{itemize}
+    \item We integrated Groq's multimodal vision model (\texttt{llama-3.2-11b-vision-preview}). Uploaded images and rasterized PDF pages are converted into base64 buffers and submitted with a structured schema prompt.
+    \item \textbf{Separation of Personal vs Business Matching:} For personal identity credentials (PAN, Aadhaar), the vision model checks applicant name consistency. For organizational documents (Company Registration, GSTIN), the model validates document authenticity, tax IDs, and company metadata independently of the founder's personal name.
+    \item \textbf{Real-Time UI Stepper Synchronization:} As soon as OCR verification completes, the response payload synchronizes the customer portal's document progress stepper from \texttt{Pending} to \texttt{Verified}.
+\end{itemize}
+
+\subsection{Step 3: Human-in-the-Loop (HITL) \& Safety Boundary Strategy}
+\textbf{The Challenge:} LLM agents frequently enter infinite conversational retry loops when users repeatedly upload bad files, consuming tokens and frustrating users.
+\textbf{Our Engineering Approach:}
+\begin{itemize}
+    \item \textbf{Deterministic 3-Strike Rule:} We enforce an \texttt{attempt\_count} tracker per document. If verification fails 3 consecutive times, the agent automatically halts the document collection loop, notifies the user that their case has been routed to human support, and creates an escalation ticket.
+    \item \textbf{Inline File Inspection Modal:} Operations personnel can inspect the actual file in a high-resolution viewer before making an operational decision.
+    \item \textbf{Tri-State Operational Action Model:}
+        \begin{enumerate}
+            \item \textbf{Manual Approval:} Overrides AI rejection, resets failure counters, marks the file verified, and unblocks the customer to proceed to the next required document.
+            \item \textbf{Request Re-upload:} Relays operator feedback directly to the customer's chat and unlocks a fresh upload attempt.
+            \item \textbf{Reject Application:} Permanently marks the customer profile as \texttt{REJECTED} and enforces an HTTP 403 Forbidden boundary across all subsequent customer interactions.
+        \end{enumerate}
+\end{itemize}
+
+\subsection{Step 4: Asynchronous Session Resumption Strategy}
+\textbf{The Challenge:} Onboarding is an asynchronous process; users drop out to locate paperwork or consult colleagues. Stateless memory models lose all context upon page reloads.
+\textbf{Our Engineering Approach:}
+\begin{itemize}
+    \item We mapped the LangGraph \texttt{thread\_id} directly to the customer's persistent \texttt{session\_id}.
+    \item \textbf{Email-Based Frictionless Resumption:} When returning, a customer simply enters their email address. The backend queries the customer record, locates the active session thread, and restores the exact conversation history, verified files list, and current node pointer via \texttt{AsyncPostgresSaver}.
+    \item \textbf{Approval Short-Circuiting:} If a human operator approved a rejected document while the customer was offline, state reconciliation logic advances the document pointer automatically upon resumption, skipping redundant re-prompts.
+\end{itemize}
+
+\subsection{Step 5: Dynamic SLA Prioritization \& Batch Follow-up Strategy}
+\textbf{The Challenge:} Operations teams cannot manually monitor hundreds of onboarding accounts to check who is stalled or nearing their deadline.
+\textbf{Our Engineering Approach:}
+\begin{itemize}
+    \item \textbf{Mathematical Urgency Prioritization:} We designed a dynamic scoring function ($\mathcal{U}$) based on elapsed time ($\Delta t$) and remaining window ($T_{\text{rem}}$):
+    \begin{equation}
+    \mathcal{U} = 
+    \begin{cases} 
+    1000 + (\text{Overdue Hours} \times 10) & \text{if } \Delta t \le 0 \quad (\textbf{BREACHED}) \\
+    500 + \text{SLA Used \%} & \text{if } 0 < T_{\text{rem}} \le 25\% \quad (\textbf{AT\_RISK}) \\
+    100 + \text{SLA Used \%} & \text{if } T_{\text{rem}} > 25\% \quad (\textbf{ON\_TRACK})
+    \end{cases}
+    \end{equation}
+    \item \textbf{Multi-Select Batch Follow-Up:} Operators can multi-select stalled customers across the queue. Groq LLM generates individual, context-aware reminders referencing each customer's specific pending documents, while automatically filtering out completed accounts.
+\end{itemize}
+
+\subsection{Step 6: High-Performance Architecture \& Write-Consolidation Strategy}
+\textbf{The Challenge:} In initial testing, writing every conversational turn to serverless PostgreSQL on Neon introduced a 1.5--2.5 second round-trip delay per message. Additionally, serverless poolers terminated idle TCP sockets after 60--120 seconds.
+\textbf{Our Engineering Approach:}
+\begin{itemize}
+    \item \textbf{Write-Consolidation:} We decoupled intermediate conversational memory from relational writes. Working state is held in the active LangGraph memory checkpoint; PostgreSQL relational writes occur only on failure events, 3rd-strike escalations, and verified completions. This reduced message turnaround latency by \textbf{60\%} (from $\approx 2.4\text{s}$ to $< 850\text{ms}$).
+    \item \textbf{Resilient Database Pooling:} Configured \texttt{pool\_recycle=60}, \texttt{pool\_pre\_ping=True}, and OS-level TCP socket keepalives (\texttt{keepalives\_idle=30}, \texttt{keepalives\_interval=10}, \texttt{keepalives\_count=5}), eliminating idle connection termination completely.
+\end{itemize}
+
+% ============================================================
+% 4. VISUAL SYSTEM ARTIFACTS
+% ============================================================
+
+\section{Visual System Artifacts}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/customer_chat_portal.png}
+    \caption{Customer Onboarding Portal: Conversational profile intake, plan requirement badges, and inline KYC document dropzone.}
+    \label{fig:portal}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/operations_sla_dashboard.png}
+    \caption{Operations \& SLA Intelligence Dashboard: Real-time accounts prioritized by urgency score with live compliance badges.}
+    \label{fig:dashboard}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/human_escalation_tickets.png}
+    \caption{Human Support Escalation Queue: Automated tickets created upon 3 consecutive document verification failures.}
+    \label{fig:tickets}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/human_escalation_modal.png}
+    \caption{HITL Document Inspection Modal: Inline document preview (PDF/images) with Tri-State resolution triggers.}
+    \label{fig:modal}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{images/batch_followup_feature.png}
+    \caption{Multi-Select Batch Proactive Follow-Up: Dispatching context-aware LLM reminder nudges across stalled accounts.}
+    \label{fig:batch}
+\end{figure}
+
+% ============================================================
+% 5. COMPREHENSIVE EVALUATION & STRESS TESTING
+% ============================================================
+
+\section{Comprehensive Hands-On Evaluation \& Stress Testing}
+
+Rather than relying solely on happy-path demonstrations, the platform was subjected to extensive edge-case injections, failure simulations, and infrastructure stress tests across 28 verification scenarios:
+
+\subsection{Category 1: Customer Intake \& Tier Management}
+\begin{itemize}
+    \item \textbf{Messy Single-Sentence Entity Extraction:} Submitted noisy, single-turn prompts containing full name, email, and phone in non-standard order (*"Hey Rahul here, my email is rahul@gmail.com and phone 9876543210"*). The regex-assisted LLM extractor cleanly isolated all 4 entities in a single turn without redundant queries. \textbf{[Result: PASS]}
+    \item \textbf{Malformed Phone Number Validation:} Submitted a 7-digit number (\texttt{9876543}); the validator rejected the input, preserved existing state, and specifically prompted for a valid 10-digit Indian mobile number. \textbf{[Result: PASS]}
+    \item \textbf{Duplicate Email Prevention:} Attempted to register with an existing customer email; system prevented duplicate database insertion, returned a courteous notification, and maintained current conversation state. \textbf{[Result: PASS]}
+    \item \textbf{Fresh Session Tier Isolation:} Verified that initiating a new session does not pre-populate or assume an account tier until the user explicitly selects or specifies it. \textbf{[Result: PASS]}
+    \item \textbf{Tier SLA Binding:} Verified accurate binding of account tiers: Individual (24h), Startup (48h), and Enterprise (72h). \textbf{[Result: PASS]}
+\end{itemize}
+
+\subsection{Category 2: Multimodal Document KYC \& Real-World Content Verification}
+\begin{itemize}
+    \item \textbf{PAN Card Verification:} Uploaded authentic PAN card image; Groq Vision OCR detected credential type, verified applicant name consistency, updated status to \texttt{Verified}, and automatically prompted for the next document. \textbf{[Result: PASS]}
+    \item \textbf{Address Proof Verification:} Uploaded Aadhaar card and electricity utility bills; confirmed document-type matching and status synchronization. \textbf{[Result: PASS]}
+    \item \textbf{Mismatched Document Type Rejection:} Uploaded a GST invoice when the agent requested a PAN card; the vision model detected the mismatch from header text and rejected the upload with explicit diagnostic feedback. \textbf{[Result: PASS]}
+    \item \textbf{Company vs Personal Name Matching (The Solved Edge Case):} During initial testing, Company Registration Certificates failed validation because naive algorithms compared the company's legal name against the founder's personal name. We engineered document-content matching specifically for corporate credentials. In testing, valid company certificates were successfully accepted even after deliberately modifying the personal customer name. \textbf{[Result: PASS]}
+    \item \textbf{GST Certificate Verification:} Tested GST certificate requirement; confirmed rejection of unrelated invoices and acceptance of authentic GSTIN registration certificates. \textbf{[Result: PASS]}
+    \item \textbf{Visual Progress Stepper Synchronization:} Verified that verified documents immediately transition from \texttt{Pending} to \texttt{Verified} on the frontend stepper without requiring manual browser reload. \textbf{[Result: PASS]}
+\end{itemize}
+
+\subsection{Category 3: Human-in-the-Loop (HITL) Exception Handling Under Stress}
+\begin{itemize}
+    \item \textbf{The 3-Strike Loop Breaker:} Repeatedly submitted blurry and invalid images. On the 3rd failed attempt, the agent halted chat upload prompts, informed the user their application had been escalated, and automatically opened a ticket on the Operations Dashboard. \textbf{[Result: PASS]}
+    \item \textbf{Inline File Inspection Modal:} Opened escalation tickets from the Operations Dashboard; verified that reviewers can zoom and inspect the actual uploaded PDF/image before acting. \textbf{[Result: PASS]}
+    \item \textbf{Manual Approval Override:} Tested operator "Approve \& Verify Manually"; confirmed attempt counter reset, document marked \texttt{Verified}, and customer flow unblocked to the next document. \textbf{[Result: PASS]}
+    \item \textbf{Request Re-upload with Custom Note:} Verified operator instructions were delivered directly to customer chat and allowed a fresh upload. \textbf{[Result: PASS]}
+    \item \textbf{Permanent Application Rejection:} Selected "Reject Application"; customer profile transitioned to \texttt{REJECTED}, and subsequent `/chat` and `/document` calls returned HTTP 403 Forbidden. \textbf{[Result: PASS]}
+    \item \textbf{Ticket Resolution Synchronization:} Confirmed resolved/rejected tickets update immediately on the operations queue. \textbf{[Result: PASS]}
+\end{itemize}
+
+\subsection{Category 4: Mid-Flow Drop-Offs, Session Resumption \& Chat Deduplication}
+\begin{itemize}
+    \item \textbf{Mid-Flow Abandonment \& Email Resume:} Completed PAN upload and closed browser tab entirely. Returned and resumed using customer email; backend restored exact conversation thread, verified files, and next pending task without requiring internal session IDs. \textbf{[Result: PASS]}
+    \item \textbf{Chat Deduplication:} Resumed existing sessions multiple times; confirmed messages restore in chronological order without duplication or replaying old agent turns. \textbf{[Result: PASS]}
+    \item \textbf{Browser Refresh Resilience:} Refreshed active tab mid-session; confirmed tier selection, document status, and chat thread remain 100\% intact. \textbf{[Result: PASS]}
+    \item \textbf{Clean State Reset:} Used the "Reset" action; confirmed old session tokens, escalation banners, and cached documents cleared completely. \textbf{[Result: PASS]}
+\end{itemize}
+
+\subsection{Category 5: SLA Engine \& Proactive Operations Testing}
+\begin{itemize}
+    \item \textbf{Dynamic Urgency Transitions:} Tested accounts approaching deadlines. When remaining time fell below 25\%, status shifted from \texttt{ON\_TRACK} to \texttt{AT\_RISK}, recalculating urgency score ($\mathcal{U}$). \textbf{[Result: PASS]}
+    \item \textbf{Queue Prioritization:} Populated queue with multiple accounts; verified dynamic sorting: Breached ($\mathcal{U} \ge 1000$) pinned to top > At-Risk ($\mathcal{U} \ge 500$) > On-Track ($\mathcal{U} \ge 100$) > Met ($\mathcal{U} = 0$). \textbf{[Result: PASS]}
+    \item \textbf{Individual Contextual Follow-Up:} Triggered single follow-up; verified Groq LLM generated personalized reminders referencing specific missing documents and customer full name. \textbf{[Result: PASS]}
+    \item \textbf{Multi-Select Batch Follow-Up:} Selected multiple stalled customers; confirmed batch LLM dispatching while automatically skipping already-completed accounts. \textbf{[Result: PASS]}
+    \item \textbf{Onboarding Completion & Provisioning:} Verified that completing all documents activates account, executes mock downstream tasks (\texttt{create\_account}, \texttt{setup\_config}, \texttt{send\_email}), and updates SLA dashboard to \texttt{MET}. \textbf{[Result: PASS]}
+\end{itemize}
+
+\subsection{Category 6: Production Reliability, Rate Limiting & Security}
+\begin{itemize}
+    \item \textbf{Structured JSON Logging:} Verified production logs containing timestamp, session ID, customer ID, endpoint, latency, and HTTP status. \textbf{[Result: PASS]}
+    \item \textbf{Retry & Resilience:} Injected deliberate failures in database connections; verified exponential backoff with jitter and automatic recovery. \textbf{[Result: PASS]}
+    \item \textbf{Sliding Window Rate Limiting:} Hammered endpoints with rapid requests; confirmed exceeding threshold triggers HTTP 429 with \texttt{Retry-After} header, while `/health` remains accessible. \textbf{[Result: PASS]}
+    \item \textbf{Health & Metrics Telemetry:} Verified `GET /health` (database ping latency, Groq availability, uptime) and `GET /metrics` (active session distributions, rate limiter metrics). \textbf{[Result: PASS]}
+    \item \textbf{Frontend Integration:} Verified customer portal and operations dashboard serve static assets and communicate with backend flawlessly. \textbf{[Result: PASS]}
+\end{itemize}
+
+% ============================================================
+% 6. AI USAGE NOTE & ENGINEERING DECISIONS
+% ============================================================
+
+\section{AI Usage Note \& Senior Engineering Reflection}
+
+In accordance with UnleashX guidelines, this section documents the explicit division between AI assistance and manual architectural decisions:
+
+\subsection{Where AI Accelerated Delivery}
+\begin{itemize}
+    \item \textbf{UI \& Frontend Development:} The complete single-page application (Customer Chat Portal and Operations \& SLA Dashboard) was designed and implemented with the assistance of AI using React 18 and Tailwind CSS, enabling rapid visual iteration and UI responsiveness while allowing engineering focus on backend state management and resilience.
+    \item \textbf{Boilerplate & Validation Scaffolding:} AI generated initial Pydantic schema structures, FastAPI router definitions, and Tailwind CSS component classes.
+    \item \textbf{Vision Prompt Engineering:} Iteratively explored prompt phrasing for Groq Vision models to enforce strict, schema-compliant JSON outputs.
+    \item \textbf{Technical Report Assembly:} AI assisted in organizing comprehensive documentation, comparing evaluation scenarios, and generating LaTeX structures for final PDF typesetting.
+    \item \textbf{Synthetic Test Scripting:} Accelerated generation of mock payloads and simulated HTTP request scripts in \texttt{scratch/}.
+\end{itemize}
+
+\subsection{What I Architected and Decided Myself}
+\begin{itemize}
+    \item \textbf{Cyclic LangGraph Architecture:} Chose a cyclic state machine over naive sequential chains, utilizing LangGraph's \texttt{interrupt()} primitive to handle asynchronous customer drop-offs cleanly.
+    \item \textbf{Write-Consolidation Performance Strategy:} Diagnosed the 2.4-second database latency bottleneck under serverless PostgreSQL and redesigned persistence to cache working turns in memory, committing to PostgreSQL only at critical operational milestones.
+    \item \textbf{Mathematical SLA Urgency Scoring:} Formulated the dynamic urgency equation ($\mathcal{U}$) combining overdue multipliers and remaining percentage thresholds to rank operations queues.
+    \item \textbf{Tri-State Operational Protocol:} Designed the 3 explicit operator choices (Approve, Re-upload, Reject) and enforced the corresponding HTTP 403 security boundary.
+    \item \textbf{Session-First Persistence Model:} Tied persistent LangGraph checkpoints (\texttt{AsyncPostgresSaver}) to customer email identifiers, enabling friction-free multi-session resumption without manual session ID input.
+\end{itemize}
+
+\subsection{What AI Output I Rejected or Corrected}
+\begin{itemize}
+    \item \textbf{Infinite Retry Loops:} Default AI suggestions relied on continuous conversational prompting for invalid uploads. I rejected this pattern and enforced a strict 3-strike deterministic interrupt to prevent token bleeding.
+    \item \textbf{Approval Re-prompting Bug:} Default agent logic re-requested approved documents upon session resume. I wrote state short-circuiting logic to advance the internal document pointer immediately once an operator approves.
+    \item \textbf{Synchronous Database Operations:} AI generated blocking synchronous queries inside agent nodes, which were refactored into async connection-pooled sessions with TCP keepalives.
+\end{itemize}
+
+% ============================================================
+% 7. CONCLUSION
+% ============================================================
+
+\section{Conclusion}
+
+The \textbf{FlowAI} Customer Onboarding Agent successfully demonstrates how autonomous LLM agents can be elevated from fragile chat toys into resilient, production-grade enterprise systems. By combining LangGraph's cyclic state machine with PostgreSQL checkpoint persistence, Groq multimodal vision OCR, and human-in-the-loop escalation guards, the system achieves a robust balance between autonomous customer self-service and human governance.
+
+% ============================================================
+% REFERENCES
+% ============================================================
+
+\section{References}
+
+\begin{enumerate}
+    \item FastAPI Framework Documentation: \url{https://fastapi.tiangolo.com/}
+    \item LangGraph Orchestration Documentation: \url{https://langchain-ai.github.io/langgraph/}
+    \item Groq Cloud API Reference: \url{https://console.groq.com/docs/}
+    \item Neon Serverless PostgreSQL Guide: \url{https://neon.tech/docs/}
+    \item SQLAlchemy 2.0 Asyncio Documentation: \url{https://docs.sqlalchemy.org/en/20/}
+    \item Pydantic Data Validation: \url{https://docs.pydantic.dev/}
+\end{enumerate}
+
+\end{document}

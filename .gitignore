@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Database & Uploads
+uploads/*
+!uploads/.gitkeep
+*.db
+*.sqlite3
+
+# Logs & System
+*.log
+.system_generated/
+.idea/
+.vscode/
+.DS_Store
+
