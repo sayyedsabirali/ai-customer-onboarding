@@ -432,7 +432,8 @@ if __name__ == "__main__":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     async def _run_server():
-        config = Config(app, host="0.0.0.0", port=8000, log_level="info")
+        port = int(os.getenv("PORT", "8000"))
+        config = Config(app, host="0.0.0.0", port=port, log_level="info")
         server = Server(config)
         await server.serve()
 
