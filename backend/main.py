@@ -65,6 +65,10 @@ async def lifespan(app: FastAPI):
     graph = build_onboarding_graph(checkpointer)
     logger.info("LangGraph agent workflow compiled successfully", extra={"action": "graph_compiled"})
 
+    if os.getenv("LANGCHAIN_TRACING_V2", "").lower() == "true":
+        project_name = os.getenv("LANGCHAIN_PROJECT", "flowai-onboarding")
+        logger.info(f"LangSmith LLM observability enabled for project: {project_name}", extra={"action": "langsmith_init", "project": project_name})
+
     app.state.pool = pool
     app.state.checkpointer = checkpointer
     app.state.graph = graph

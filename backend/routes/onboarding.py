@@ -72,7 +72,9 @@ async def start_onboarding(
         state = initialize_state(customer_id=None, session_id=session_id, message="", customer_type=customer_type)
         config = {
             "configurable": {"thread_id": session_id},
-            "recursion_limit": 50
+            "recursion_limit": 50,
+            "tags": ["flowai", "onboarding-start", customer_type or "unassigned"],
+            "metadata": {"session_id": session_id, "customer_type": customer_type}
         }
 
         print(f"Graph: {type(graph).__name__}", file=sys.stderr, flush=True)
@@ -401,7 +403,11 @@ async def chat(
     Uses Command(resume=message) to resume from the current interrupt.
     """
     graph = request.app.state.graph
-    config = {"configurable": {"thread_id": session_id}}
+    config = {
+        "configurable": {"thread_id": session_id},
+        "tags": ["flowai", "chat-interaction"],
+        "metadata": {"session_id": session_id}
+    }
 
     # Check if application has been permanently rejected
     state_rec = db.query(OnboardingState).filter(OnboardingState.session_id == session_id).order_by(OnboardingState.created_at.desc()).first()
