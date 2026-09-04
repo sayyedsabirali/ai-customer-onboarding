@@ -2,12 +2,20 @@
 > **UnleashX Production Engineering Assignment**
 > An autonomous, production-grade AI onboarding platform built with **LangGraph**, **PostgreSQL Checkpointing**, **Groq Multimodal Vision OCR**, and **Real-Time Operations SLA Intelligence**.
 
+[![Live App](https://img.shields.io/badge/Live%20Deployment-Render-46E3B7.svg?style=flat-square&logo=render)](https://ai-customer-onboarding.onrender.com/)
+[![Project Report](https://img.shields.io/badge/Project%20Report-Google%20Drive-4285F4.svg?style=flat-square&logo=google-drive)](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-FF6F00.svg?style=flat-square)](https://langchain-ai.github.io/langgraph/)
 [![Groq Vision](https://img.shields.io/badge/Vision%20%26%20LLM-Groq%20Cloud-f55036.svg?style=flat-square)](https://groq.com/)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20(Neon)-336791.svg?style=flat-square&logo=postgresql)](https://neon.tech/)
 [![React 18](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Tailwind-61DAFB.svg?style=flat-square&logo=react)](https://reactjs.org/)
 [![Bonus Challenge](https://img.shields.io/badge/Bonus-SLA%20Tracking%20%26%20Prioritization-success?style=flat-square)](#bonus-challenge--sla-intelligence-engine)
+
+---
+
+> 🚀 **Live Deployed Application:** [https://ai-customer-onboarding.onrender.com/](https://ai-customer-onboarding.onrender.com/)  
+> 📑 **Official Architecture & Project Report (PDF):** [View on Google Drive](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)  
+> 💻 **GitHub Repository:** [https://github.com/sayyedsabirali/ai-customer-onboarding](https://github.com/sayyedsabirali/ai-customer-onboarding)
 
 ---
 
@@ -227,9 +235,11 @@ python backend/main.py
 Server starts on `http://localhost:8000`.
 
 ### 4. Access the Application
-- **Customer Portal & Operations Dashboard:** `http://localhost:8000/`
-- **Interactive Swagger API Documentation:** `http://localhost:8000/docs`
-- **Health Check Endpoint:** `http://localhost:8000/health`
+- **Live Production URL:** [https://ai-customer-onboarding.onrender.com/](https://ai-customer-onboarding.onrender.com/)
+- **Live Swagger API Docs:** [https://ai-customer-onboarding.onrender.com/docs](https://ai-customer-onboarding.onrender.com/docs)
+- **Live Health Check Endpoint:** [https://ai-customer-onboarding.onrender.com/health](https://ai-customer-onboarding.onrender.com/health)
+- **Local Development URL:** `http://localhost:8000/`
+- **Local Swagger Docs:** `http://localhost:8000/docs`
 
 ---
 
