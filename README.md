@@ -249,10 +249,8 @@ ai-customer-onboarding/
 │   └── index.html
 ├── docs/
 │   ├── architecture.mmd
-│   ├── images/
-│   └── project_report.tex
+│   └── images/
 ├── scratch/
-├── report.tex
 ├── requirements.txt
 ├── Dockerfile
 ├── .gitignore
