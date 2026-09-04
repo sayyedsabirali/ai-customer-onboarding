@@ -73,8 +73,13 @@ async def start_onboarding(
         config = {
             "configurable": {"thread_id": session_id},
             "recursion_limit": 50,
-            "tags": ["flowai", "onboarding-start", customer_type or "unassigned"],
-            "metadata": {"session_id": session_id, "customer_type": customer_type}
+            "tags": [f"session:{session_id[:8]}", "flowai-onboarding", customer_type or "unassigned"],
+            "metadata": {
+                "thread_id": session_id,
+                "session_id": session_id,
+                "customer_type": customer_type or "unassigned"
+            },
+            "run_name": f"Session [{session_id[:8]}] - Start"
         }
 
         print(f"Graph: {type(graph).__name__}", file=sys.stderr, flush=True)
@@ -403,12 +408,6 @@ async def chat(
     Uses Command(resume=message) to resume from the current interrupt.
     """
     graph = request.app.state.graph
-    config = {
-        "configurable": {"thread_id": session_id},
-        "tags": ["flowai", "chat-interaction"],
-        "metadata": {"session_id": session_id}
-    }
-
     # Check if application has been permanently rejected
     state_rec = db.query(OnboardingState).filter(OnboardingState.session_id == session_id).order_by(OnboardingState.created_at.desc()).first()
     if state_rec:
@@ -418,6 +417,17 @@ async def chat(
                 status_code=403,
                 detail="Your onboarding application has been rejected. Chat is disabled."
             )
+
+    config = {
+        "configurable": {"thread_id": session_id},
+        "tags": [f"session:{session_id[:8]}", "flowai-onboarding", "chat"],
+        "metadata": {
+            "thread_id": session_id,
+            "session_id": session_id,
+            "customer_id": str(state_rec.customer_id) if state_rec and state_rec.customer_id else None
+        },
+        "run_name": f"Session [{session_id[:8]}] - Chat"
+    }
 
     result = await graph.ainvoke(
         Command(resume=message),
@@ -624,8 +634,17 @@ async def upload_document(
     docs_status[document_type] = "verified"
 
     # ---- Resume LangGraph ----
-    graph = request.app.state.graph
-    config = {"configurable": {"thread_id": session_id}}
+    config = {
+        "configurable": {"thread_id": session_id},
+        "tags": [f"session:{session_id[:8]}", "flowai-onboarding", "document-upload"],
+        "metadata": {
+            "thread_id": session_id,
+            "session_id": session_id,
+            "document_type": document_type,
+            "customer_id": str(customer_id) if customer_id else None
+        },
+        "run_name": f"Session [{session_id[:8]}] - Doc {document_type}"
+    }
 
     resume_value = {
         "document_type": document_type,
