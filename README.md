@@ -36,20 +36,17 @@
 
 ---
 
-## ✅ Assignment Requirement Coverage
+## ✅ Assignment Capabilities Checklist
 
-Mapped directly against the "What You Need to Build" checklist from the assignment brief:
-
-| Assignment Requirement | What FlowAI Delivers |
-| :--- | :--- |
-| Accept a new customer and create an onboarding plan based on customer type | Customer explicitly picks a tier (no default assumed); FlowAI dynamically generates the required-document checklist and SLA clock for that tier (Individual 24h, Startup 48h, Enterprise 72h). |
-| Collect required information and documents conversationally | Single free-text intake (name + email + phone in one message) or step-by-step — both extract cleanly with regex-backed validation. |
-| Validate completeness and basic consistency of submitted information | Malformed emails/phone numbers are rejected and re-prompted individually without discarding already-valid fields; documents are validated against their expected type and content, not just accepted on upload. |
-| Trigger mock/internal APIs to create setup tasks or update customer status | On full verification, downstream tasks (`create_account`, `setup_config`, `send_email`, `billing_profile`) fire automatically and the customer status updates to completed. |
-| Remember onboarding state across sessions and follow up on pending items | PostgreSQL-backed LangGraph checkpointing (`AsyncPostgresSaver`) keyed to the customer's email; individual and batch AI-generated follow-up nudges for stalled customers. |
-| Escalate exceptions to a human with context and recommended next action | After 3 failed attempts on a document, an escalation ticket is created with the failure reason, an AI-recommended next action, and the **actual uploaded document** attached for inline review. |
-| Provide a dashboard showing onboarding stage, blockers and completion status | Operations Dashboard shows every customer's current stage, pending documents, SLA status, and urgency score in real time. |
-| **Bonus:** SLA tracking and intelligent prioritization | Mathematical urgency formula (𝒰) ranks Breached > At-Risk > On-Track > Met, with one-click batch follow-up. |
+| Feature Requirement | Implementation | Status |
+| :--- | :--- | :---: |
+| **Tier-Based Onboarding Plan** | Dynamic checklists & SLA deadlines (Individual 24h, Startup 48h, Enterprise 72h). | ✅ Met |
+| **Conversational Intake** | Single-shot or multi-turn extraction with regex-backed field validation. | ✅ Met |
+| **Document OCR & Consistency** | Groq Vision (`llama-3.2-11b-vision-preview`) extracts metadata and cross-checks names. | ✅ Met |
+| **Internal & Mock Integrations** | Auto-provisions accounts, configuration tasks, and notifications on completion. | ✅ Met |
+| **Stateful Persistence** | PostgreSQL `AsyncPostgresSaver` keyed by email; restores exact conversation state. | ✅ Met |
+| **HITL Exception Escalation** | 3-strike policy routes failing files to operators with inline preview and Tri-State actions. | ✅ Met |
+| **Operations SLA Dashboard** | Real-time Kanban-style queue with dynamic urgency scoring (𝒰) and batch follow-ups. | ✅ Met |
 
 ---
 
@@ -121,67 +118,41 @@ Operators select multiple stalled customers to dispatch context-aware, personali
 
 ---
 
-## 🧪 Evaluation & Testing Methodology
+## 🧪 Evaluation & Test Coverage Matrix
 
-The system was evaluated across end-to-end customer journeys and automated regression suites against the core criteria:
+The platform was evaluated against 5 critical production vectors using end-to-end user simulations and automated regression suites:
 
-### 1. Conversational Intake & Problem Decomposition
-- Gave all details in one message (*"I'm Rahul, rahul@gmail.com, 9876543210"*) — extracted correctly in a single turn.
-- Gave details one at a time — same extraction logic handled it identically.
-- Fed a malformed email and a 7-digit phone number — each was rejected individually, the field was re-asked for on its own, and already-valid fields were never lost.
-- **Outcome:** `PASS` — the same intake logic handles both messy, single-shot input and slow, step-by-step input without branching code paths.
-
-### 2. Dynamic Tier Selection & State Management
-- Confirmed a fresh session assigns no tier until the customer explicitly picks one.
-- Confirmed the required-document checklist and SLA clock (24h / 48h / 72h) change based on the selected tier, and stay consistent after a page refresh or session resume — proving the tier is real backend state, not a frontend-only label.
-- **Outcome:** `PASS`.
-
-### 3. Document Handling & Tool Calling (per document type)
-Each document type is checked against what actually matters for it, not a single generic rule:
-- **PAN Card / Aadhaar (Address Proof):** Vision model confirms document type, then matches the extracted name against the customer's profile — since these are personal identity documents.
-- **GST Certificate / Company Registration:** Validated against the document's own content (GSTIN, business/company name) — **deliberately not** matched against the customer's personal name, since these are business documents. Verified this holds even after changing the personal name mid-test, and that a wrong document (e.g. a GST invoice submitted for a PAN request) is correctly rejected with a specific reason.
-- **Outcome:** `PASS` — tool calling (Groq Vision) is applied with document-specific logic, not a one-size-fits-all check.
-
-### 4. Human-in-the-Loop Design Under Stress
-- Deliberately failed a document 3 times in a row — confirmed the agent stops retrying (no infinite loop) and creates an escalation ticket automatically.
-- Confirmed the **actual failing document is persisted to the database** at the 3rd strike, so the operator opening the ticket sees the real uploaded file, not just a text summary of the failure.
-- Tested all three operator decisions:
-  - **Approve** — attempt counter resets, document marked verified, customer flow advances to the next document (no re-prompt loop).
-  - **Request re-upload** — customer receives the operator's custom note and gets a fresh attempt.
-  - **Reject** — customer session is permanently locked, all further `/chat` and `/document` calls return `HTTP 403`.
-- **Outcome:** `PASS` — the escalation path always carries enough context (document + reason + recommendation) for a human to act without going back to the customer first.
-
-### 5. Reliability & Orchestration
-- Session resumption by email restores exact conversation history and document state after a full browser close, including mid-flow abandonment.
-- Refreshing the page mid-session leaves tier, document progress, and chat state untouched.
-- Injected deliberate DB failures — confirmed exponential backoff + jitter and automatic recovery.
-- Hammered protected endpoints — confirmed `HTTP 429` with `Retry-After` once the rate limit is hit, while `/health` stays reachable throughout.
-- **Outcome:** `PASS` — the graph's cyclic design (rather than a linear chain) is what makes drop-offs, retries, and human intervention survivable without special-casing each one.
+| Evaluation Vector | Test Scenario | Verified Behavior | Status |
+| :--- | :--- | :--- | :---: |
+| **Conversational Intake** | Single-shot combined profile input vs multi-turn; malformed email/phone. | Extracts valid fields cleanly; re-prompts only invalid fields without data loss. | ✅ PASS |
+| **Dynamic Tiering** | Individual (24h), Startup (48h), Enterprise (72h) selection and reloads. | Dynamically provisions checklist and SLA clock; state persists across sessions. | ✅ PASS |
+| **Vision OCR Verification** | Personal ID (PAN/Aadhaar) vs Corporate docs (GST/Registration). | Personal docs cross-match name; corporate docs validate entity number independently. | ✅ PASS |
+| **HITL Escalation Loop** | 3 consecutive upload failures; operator Approve / Re-upload / Reject. | Halts retries at 3rd strike, preserves file for inline review; override advances flow. | ✅ PASS |
+| **Fault Resilience & Scale** | Dropped DB connections, rapid session reloads, and rate-limit hammering. | Auto-reconnects via TCP keepalives; enforces HTTP 429 while keeping `/health` live. | ✅ PASS |
 
 ---
 
 ## 🤖 AI Usage Note
 
-*In accordance with the UnleashX assignment guidelines, this section outlines the explicit division between AI assistance and manual engineering decisions:*
+*In accordance with UnleashX guidelines, here is the breakdown between AI acceleration and human engineering decisions:*
 
-### 1. Where AI Accelerated Delivery
-- **UI & Frontend Development:** The entire single-page application (Customer Chat Portal + Operations & SLA Dashboard) was designed and built with the help of AI using React 18 and Tailwind CSS. This allowed rapid UI scaffolding and visual iteration, freeing up my focus for the core backend state machine, database design, and API resilience.
-- **Boilerplate & Schema Generation:** AI was used to rapidly generate initial FastAPI endpoint definitions, Pydantic validation schemas, and database model boilerplates.
-- **Multimodal Prompt Iteration:** Explored prompt variants for Groq vision models to ensure strict JSON schemas containing document type, extracted name, resolution checks, and failure reasons.
-- **Technical Report Assembly:** Used AI to help compare and organize content while assembling the accompanying technical report — pulling architecture notes, engineering decisions, and evaluation results into one coherent document — and to generate the LaTeX used to typeset the final PDF.
-- **Synthetic Test Generation:** Scripted mock payloads and test fixtures for simulating edge-case client requests in the automated test suite.
+### 1. What AI Accelerated
+- **UI Prototyping:** Scaffolding the React 18 / Tailwind single-page application (Customer Chat & Ops SLA Dashboard).
+- **Schema & Boilerplate:** Generating initial FastAPI Pydantic request/response models and DB tables.
+- **OCR Prompt Tuning:** Iterating Groq LLaVA / Llama-3.2 vision system prompts for structured JSON extraction.
+- **Mock Test Fixtures:** Generating synthetic test payloads for regression scripts in `scratch/`.
 
 ### 2. What I Architected & Decided Myself
-- **Cyclic LangGraph State Machine:** Designed a stateful graph using the `interrupt()` primitive for human and customer wait states rather than naive linear chains.
-- **Session-First Persistence Architecture:** Tied persistent LangGraph checkpoints (`AsyncPostgresSaver`) to customer email identifiers, enabling friction-free multi-session resumption without manual session ID input.
-- **Write-Consolidation Strategy:** Diagnosed the 2.4-second database latency bottleneck under serverless PostgreSQL and redesigned persistence to cache working turns in memory, writing to PostgreSQL only at critical milestones.
-- **Mathematical Urgency Formula:** Formulated the SLA scoring equation (𝒰) that dynamically weights overdue time and percentage thresholds to prioritize operations queues.
-- **Tri-State Operational Protocol:** Engineered the 3 explicit operator choices (Approve, Re-upload, Reject) and enforced the corresponding HTTP 403 security boundary.
+- **Cyclic LangGraph Architecture:** Stateful graph using interrupt primitives rather than rigid linear chains.
+- **Session-First Persistence:** Keyed LangGraph checkpoints (`AsyncPostgresSaver`) to emails for zero-friction resume.
+- **Write-Consolidation Strategy:** Eliminated 2.4s chat lag by caching working turns and committing DB writes at milestones.
+- **Mathematical Urgency Formula:** Designed the SLA scoring formula (𝒰) to dynamically bubble up at-risk accounts.
+- **Tri-State Operator Security Boundary:** Built the Approve, Re-upload, Reject protocol with HTTP 403 locking.
 
 ### 3. What AI-Generated Output I Rejected or Corrected
-- **Rejected Infinite Retry Loops:** Default AI suggestions relied on continuous conversational prompting for invalid uploads. I rejected this pattern and enforced a strict 3-strike deterministic interrupt to prevent token bleeding.
-- **Corrected Re-Verification Loops on Approval:** Default agent logic re-requested approved documents upon session resume. I wrote state short-circuiting logic to advance the internal document pointer immediately once an operator approves.
-- **Eliminated Synchronous DB Calls:** Refactored AI-suggested synchronous tool calls inside agent nodes into non-blocking async pooled sessions with TCP keepalives to prevent serverless connection drops.
+- **Rejected Infinite Chat Loops:** Discarded naive LLM re-prompting on failures; enforced strict 3-strike deterministic escalation.
+- **Fixed Document Re-prompt Bug:** Overrode agent memory upon human approval so it advances rather than re-requesting verified files.
+- **Removed Sync Database Blocking:** Refactored synchronous DB tool calls to async pooled connections with TCP keepalives.
 
 ---
 
