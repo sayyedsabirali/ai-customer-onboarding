@@ -3,6 +3,7 @@
 > An autonomous, production-grade AI onboarding platform built with **LangGraph**, **PostgreSQL Checkpointing**, **Groq Multimodal Vision OCR**, and **Real-Time Operations SLA Intelligence**.
 
 [![Live App](https://img.shields.io/badge/Live%20Deployment-Render-46E3B7.svg?style=flat-square&logo=render)](https://ai-customer-onboarding.onrender.com/)
+[![Demo Video](https://img.shields.io/badge/Demo%20Video-Google%20Drive-EA4335.svg?style=flat-square&logo=google-drive)](https://drive.google.com/file/d/1h8ZEc8xekn_gHpOZkEB3O3mk_2cJFqtZ/view?usp=sharing)
 [![Project Report](https://img.shields.io/badge/Project%20Report-Google%20Drive-4285F4.svg?style=flat-square&logo=google-drive)](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717.svg?style=flat-square&logo=github)](https://github.com/sayyedsabirali/ai-customer-onboarding)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -19,6 +20,7 @@
 | Deliverable | Destination / Resource | Notes |
 | :--- | :--- | :--- |
 | 🌐 **Live Deployed Application** | **[https://ai-customer-onboarding.onrender.com/](https://ai-customer-onboarding.onrender.com/)** | Customer Portal + Ops SLA Dashboard |
+| 🎬 **Live Demo Video (Walkthrough)** | **[Google Drive Video](https://drive.google.com/file/d/1h8ZEc8xekn_gHpOZkEB3O3mk_2cJFqtZ/view?usp=sharing)** | End-to-end video demonstration & explanation |
 | 📑 **Project & Architecture Report** | **[Google Drive Document (PDF)](https://drive.google.com/file/d/1g1IDDEbF4GM9_TPVz2wf1ofbnO30IgWL/view?usp=sharing)** | In-depth system design & evaluation paper |
 | 🧪 **Comprehensive Evaluation Report** | **[`EVALUATION.md`](EVALUATION.md)** | Full methodology, benchmarks & test suites |
 | 🤖 **AI Usage Note & Decisions** | **[`AI_USAGE_NOTE.md`](AI_USAGE_NOTE.md)** | AI acceleration vs human engineering choices |
