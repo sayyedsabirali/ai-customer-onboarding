@@ -508,6 +508,8 @@ async def upload_document(
         )
     document_type = normalized_type
 
+    graph = request.app.state.graph
+
     # Get the onboarding state record
     state_record = db.query(OnboardingState).filter(
         OnboardingState.session_id == session_id
@@ -515,7 +517,6 @@ async def upload_document(
 
     if not state_record:
         # Fallback to LangGraph checkpointer state
-        graph = request.app.state.graph
         try:
             curr_state = await graph.aget_state({"configurable": {"thread_id": session_id}})
             if curr_state and curr_state.values:
